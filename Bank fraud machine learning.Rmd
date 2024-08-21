@@ -1,0 +1,942 @@
+---
+title: "Bank fraud machine learning"
+author: "simi"
+date: "2024-08-17"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+#load packages
+library(caret)
+```
+
+
+
+```{r}
+
+#Load the train and test dataset
+
+train<-read.csv("/Users/user/Music/machine learning R/fraud_train.csv")
+
+test<-read.csv("/Users/user/Music/machine learning R/fraud_test.csv")
+
+```
+
+
+
+```{r}
+#create column to differentiate train and test dataset
+train$isTrain<-"yes"
+test$isTrain<-"no"
+
+#combine train and test datasets
+comb<-rbind(train,test)
+
+```
+
+
+```{r}
+missing_values<-colSums(is.na(comb))
+missing_values
+```
+
+
+
+```{r}
+names(comb)
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+features<-c("Sector_score", "PARA_A" ,"Score_A" ,  "Risk_A", "PARA_B","Score_B","Risk_B","TOTAL","numbers","Risk_C","Money_Value","Score_MV", "Risk_D" ,"District_Loss" , "PROB","RiSk_E", "History", "Prob" , "Risk_F" , "Score" ,"Inherent_Risk", "CONTROL_RISK", "Detection_Risk","Audit_Risk", "Risk",  "isTrain")
+
+comb<-comb[,features]
+str(comb)
+```
+
+
+```{r}
+
+# Impute missing values
+pre.process<-preProcess(comb,method = "bagImpute")
+imputed.data<-predict(pre.process,comb)
+
+```
+
+
+```{r}
+comb<-imputed.data
+
+comb$Risk<-as.factor(comb$Risk)
+```
+
+
+```{r}
+
+
+#split dataset back to train and test set
+train<-comb[comb$isTrain=="yes",]
+
+test<-comb[comb$isTrain=="no",]
+```
+
+
+
+
+```{r}
+#remove variable isTrain from both train and test set
+
+train$isTrain<-NULL
+
+test$isTrain<-NULL
+```
+
+
+##modeling
+#Logistic regression
+```{r}
+set.seed(8819)
+control <- trainControl(
+  method = "cv",                  # Cross-validation
+  number = 10,                    # 10-fold CV
+  classProbs = TRUE,              # Compute class probabilities
+  summaryFunction = twoClassSummary, # Calculate ROC, Sensitivity, etc.
+  savePredictions = TRUE
+)
+
+model.logit <- train(
+Risk~.,
+data = train,
+method = "glm",
+family = "binomial",
+trControl = control,
+preProcess = c("zv", "center", "scale"),
+tuneLength = 16,
+metric="ROC"
+)
+
+```
+
+
+
+```{r}
+pred_y = predict(model.logit,test)
+
+
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+
+
+#random forest
+```{r}
+set.seed(8819)
+
+control <- trainControl(
+  method = "cv",                  # Cross-validation
+  number = 10,                    # 10-fold CV
+  classProbs = TRUE,              # Compute class probabilities
+  summaryFunction = twoClassSummary, # Calculate ROC, Sensitivity, etc.
+  savePredictions = TRUE
+)
+
+model.rf <- train(
+Risk~.,
+data = train,
+method = "rf",
+metric="ROC",
+trControl = control,
+tuneLength = 16
+)
+
+```
+
+
+
+
+
+```{r}
+pred_y = predict(model.rf,test)
+
+
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+#Decision tree
+```{r}
+set.seed(8819)
+
+control <- trainControl(
+  method = "cv",                  # Cross-validation
+  number = 10,                    # 10-fold CV
+  classProbs = TRUE,              # Compute class probabilities
+  summaryFunction = twoClassSummary, # Calculate ROC, Sensitivity, etc.
+  savePredictions = TRUE
+)
+
+model.dtree <- train(
+Risk~.,
+data = train,
+method = "rpart",
+trControl = control,
+tuneLength = 16
+)
+```
+
+
+
+```{r}
+pred_y = predict(model.dtree,test)
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+
+```{r}
+library(fastAdaboost)
+set.seed(8819)
+
+model.adaboost <- train(
+Risk~.,
+data = train,
+method = "adaboost",
+trControl = control,
+metric="ROC",
+tuneLength = 16
+)
+```
+
+
+```{r}
+pred_y = predict(model.adaboost,test)
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+#SVM
+
+```{r}
+set.seed(8819)
+
+model.SVM <- train(
+Risk~.,
+data = train,
+method = "svmRadial",
+trControl = control,
+metric="ROC",
+preProcess = c("center","scale"),
+tuneLength = 16
+)
+```
+
+
+
+
+```{r}
+pred_y = predict(model.SVM,test)
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+
+#Naive Bayes
+```{r}
+set.seed(8819)
+library(naivebayes)
+
+model.Naive_bayes <- train(
+Risk~.,
+data = train,
+method = "naive_bayes",
+trControl = control,
+metric="ROC",
+PreProcess = c("center","scale"),
+tuneLength = 16
+)
+```
+
+
+
+
+```{r}
+pred_y = predict(model.Naive_bayes,test)
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+
+#Extreme gradient Boosting
+
+```{r}
+model.XGB <- train(
+Risk~.,
+data = train,
+method = "xgbTree",
+trControl = control,
+metric="ROC",
+PreProcess = c("center","scale"),
+tuneLength = 16
+)
+```
+
+
+
+```{r}
+pred_y = predict(model.XGB,test)
+
+#create confusion matrix
+conf_mat = confusionMatrix(pred_y,test$Risk)
+print(conf_mat)
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+
+```
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
